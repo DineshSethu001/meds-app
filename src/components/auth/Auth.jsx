@@ -1,69 +1,89 @@
 import { useState } from "react"
-import { signUp, signIn } from "./authService"
+import { useNavigate } from "react-router-dom"
+import { signUp, signInWithRole } from "./authService"
+import bgImage from "../../assets/img/med_1.png"
+
 
 function Auth() {
+  const navigate = useNavigate()
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLogin, setIsLogin] = useState(true)
   const [message, setMessage] = useState("")
   const [role, setRole] = useState(null)
+  const [loading, setLoading] = useState(false)
 
+  /* =========================
+     SUBMIT HANDLER
+  ========================= */
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setMessage("")
 
-  if (isLogin) {
-  const { data, error } = await signIn(email, password)
-  if (error) {
-    setMessage(error.message)
-  } else {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", data.user.id)
-      .single()
+    if (!role) {
+      setMessage("Please select a role")
+      return
+    }
 
-    if (profile.role !== role) {
-      setMessage("❌ Wrong role selected")
-      await supabase.auth.signOut()
-    } else {
-      setMessage("Login successful ✅")
+    setLoading(true)
+
+    try {
+      if (isLogin) {
+        const { error } = await signInWithRole(email, password, role)
+
+        if (error) {
+          setMessage(error.message)
+        } else {
+          setMessage("Login successful ✅")
+          navigate("/", { replace: true })
+        }
+      } else {
+        const { error } = await signUp(email, password, role)
+
+        if (error) {
+          setMessage(error.message)
+        } else {
+          setMessage("📧 Verification email sent. Please verify before login.")
+          setIsLogin(true)
+        }
+      }
+    } catch (err) {
+      setMessage("Something went wrong. Try again.")
+    } finally {
+      setLoading(false)
     }
   }
-}
 
-  }
-
-  // =========================
-  // ROLE SELECTION SCREEN
-  // =========================
+  /* =========================
+     ROLE SELECTION
+  ========================= */
   if (!role) {
     return (
       <div
-        className="min-h-screen flex items-center justify-center bg-cover bg-center px-4 relative"
+        className="min-h-screen flex items-center justify-center px-4 bg-cover bg-center relative"
         style={{
-          backgroundImage: "url('/src/assets/img/med_1.png')",
-        }}
+    backgroundImage: `url(${bgImage})`,
+  }}
       >
+        {/* Dark overlay */}
 
-        <div className="relative backdrop-blur-md p-10 rounded-3xl shadow-2xl w-full max-w-md text-center">
-
-          <h2 className="text-3xl font-semibold mb-8 text-[#00B7B5]">
+        <div className="relative bg-white/20 backdrop-blur-sm p-8 rounded-2xl shadow-2xl w-full max-w-md text-center border border-white/30">
+          <h2 className="text-3xl font-bold mb-8 text-white">
             Welcome 💊
           </h2>
 
-          <div className="space-y-6">
-
-            
-
+          <div className="space-y-4">
             <button
               onClick={() => setRole("patient")}
-              className="w-full bg-[#00B7B5] text-white text-xl py-4 rounded-2xl hover:opacity-90 transition"
+              className="w-full bg-green-600 text-white py-4 rounded-xl text-lg hover:bg-green-700 transition"
             >
-              💊 My Medication
+              💊 Patient Login
             </button>
-<button
+
+            <button
               onClick={() => setRole("caretaker")}
-              className="w-full bg-blue-700 text-white text-xl py-4 rounded-2xl hover:bg-blue-900 transition"
+              className="w-full bg-blue-600 text-white py-4 rounded-xl text-lg hover:bg-blue-700 transition"
             >
               👩‍⚕️ Caretaker Login
             </button>
@@ -73,104 +93,90 @@ function Auth() {
     )
   }
 
-  // =========================
-  // LOGIN / SIGNUP FORM
-  // =========================
+  /* =========================
+     LOGIN / SIGNUP FORM
+  ========================= */
   return (
     <div
-      className="min-h-screen flex items-center justify-center bg-cover bg-center px-4 relative"
-      style={{
-        backgroundImage: "url('/src/assets/img/med_1.png')",
-      }}
+      className="min-h-screen flex items-center justify-center px-4 bg-cover bg-center relative"
+        style={{
+    backgroundImage: `url(${bgImage})`,
+  }}
     >
-      <div className="absolute inset-0 bg-black/60"></div>
+      {/* Dark overlay */}
 
-      <div className="relative w-full max-w-md backdrop-blur-md p-8 rounded-2xl shadow-2xl">
+      <form
+  onSubmit={handleSubmit}
+  className="relative bg-blue-50 p-8 rounded-2xl shadow-2xl w-full max-w-md border border-blue-200"
+>
+  <button
+    type="button"
+    onClick={() => {
+      setRole(null)
+      setMessage("")
+    }}
+    className="text-sm text-blue-700 underline mb-4"
+  >
+    ← Back
+  </button>
 
-        {/* Back Button */}
-        <button
-          onClick={() => {
-            setRole(null)
-            setMessage("")
-          }}
-          className="text-sm text-[#EBF4DD] underline mb-4"
-        >
-          ← Back
-        </button>
+  <h2 className="text-2xl font-bold text-center mb-6 text-blue-900">
+    {role === "caretaker" ? "Caretaker Access" : "Patient Access"}
+  </h2>
 
-        {/* Header */}
-        <div className="flex gap-2 justify-center items-center mb-6">
-          <span className="text-4xl">💊</span>
+  {/* Email */}
+  <input
+    type="email"
+    placeholder="Email"
+    className="w-full bg-white text-gray-800 placeholder-gray-400 border border-gray-300 p-3 mb-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+    value={email}
+    onChange={(e) => setEmail(e.target.value)}
+    required
+  />
 
-          <h2 className="text-2xl tracking-wide leading-relaxed text-center text-[#00B7B5]">
-            {isLogin ? "Login to Continue" : "Create Your Account"}
-          </h2>
+  {/* Password */}
+  <input
+    type="password"
+    placeholder="Password"
+    className="w-full bg-white text-gray-800 placeholder-gray-400 border border-gray-300 p-3 mb-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+    value={password}
+    onChange={(e) => setPassword(e.target.value)}
+    required
+  />
 
-          <span className="text-4xl">❤️</span>
-        </div>
+  {/* Submit */}
+  <button
+    type="submit"
+    disabled={loading}
+    className={`w-full py-3 rounded-lg text-white font-semibold transition ${
+      loading
+        ? "bg-gray-400 cursor-not-allowed"
+        : role === "patient"
+        ? "bg-green-600 hover:bg-green-700"
+        : "bg-blue-600 hover:bg-blue-700"
+    }`}
+  >
+    {loading ? "Please wait..." : isLogin ? "Login" : "Sign Up"}
+  </button>
 
-        {/* Role Indicator */}
-        <p className="text-center text-lg text-[#EBF4DD] mb-6">
-          {role === "caretaker" ? "Caretaker Access" : "Patient Access"}
-        </p>
+  {/* Toggle */}
+  <p
+    className="text-center text-sm mt-6 cursor-pointer underline text-blue-700"
+    onClick={() => setIsLogin(!isLogin)}
+  >
+    {isLogin
+      ? "Need an account? Sign up"
+      : "Already have an account? Login"}
+  </p>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+  {/* Message */}
+  {message && (
+    <p className="text-center text-red-600 mt-4 font-medium">
+      {message}
+    </p>
+  )}
+</form>
 
-          {/* Email */}
-          <div>
-            <label className="block text-lg font-semibold mb-2 text-[#EBF4DD]">
-              Email Address
-            </label>
-            <input
-              type="email"
-              className="w-full p-4 text-lg border-2 border-gray-300 rounded-lg focus:border-blue-600 focus:outline-none"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-
-          {/* Password */}
-          <div>
-            <label className="block text-lg font-semibold mb-2 text-[#EBF4DD]">
-              Password
-            </label>
-            <input
-              type="password"
-              className="w-full p-4 text-lg border-2 border-gray-300 rounded-lg focus:border-blue-600 focus:outline-none"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            className="w-full cursor-pointer bg-blue-700 text-white text-xl py-4 rounded-lg hover:bg-blue-900 transition"
-          >
-            {isLogin ? "Login" : "Sign Up"}
-          </button>
-        </form>
-
-        {/* Toggle Login / Signup */}
-        <p
-          className="text-lg text-center mt-6 cursor-pointer text-[#EBF4DD] font-medium"
-          onClick={() => setIsLogin(!isLogin)}
-        >
-          {isLogin
-            ? "Need an account? Sign up"
-            : "Already registered? Login"}
-        </p>
-
-        {/* Message */}
-        {message && (
-          <p className="text-lg text-center mt-4 text-red-600 font-medium">
-            {message}
-          </p>
-        )}
-
-      </div>
     </div>
   )
 }
